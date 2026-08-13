@@ -3397,11 +3397,138 @@ theorem rowDot_comm (x y : BitVec 668) : rowDot x y = rowDot y x := by
 theorem rowDot_self (x : BitVec 668) : rowDot x x = 668 := by
   simp [rowDot]
 
+/-- The rows of `H668Rows` as natural numbers, in the same order. -/
+def H668Nats : List ℕ := H668Rows.toList.map BitVec.toNat
+
+/-- Reading `H668Nats` positionally agrees with reading `H668Rows`. -/
+@[category API, AMS 68]
+theorem getElem_H668Nats (i : Fin 668) (h : (i : ℕ) < H668Nats.length) :
+    H668Nats[(i : ℕ)] = (H668Rows.get i).toNat := by
+  simp only [H668Nats, List.getElem_map, Vector.getElem_toList, Vector.get,
+    Vector.getElem_toArray, Fin.val_cast]
+
+-- `w` is kept a variable so the elaborator never unfolds `2 ^ 668` at the call site.
+/-- The bit-count of an XOR of two `w`-bit words, over the `w` positions that can carry it. -/
+@[category API, AMS 68]
+theorem popCount_xor_eq_sum {w : ℕ} (hw : w ≤ 672) (x y : BitVec w) :
+    Nat.popCount (x.toNat ^^^ y.toNat)
+      = ∑ i ∈ Finset.range w, (x.toNat ^^^ y.toNat) / 2 ^ i % 2 :=
+  Nat.popCount_eq_sum_of_lt (Nat.xor_lt_two_pow x.isLt y.isLt) hw
+
+/-- Two sign rows of length 668 that differ in exactly 334 positions are orthogonal. -/
+@[category API, AMS 15]
+theorem rowDot_eq_zero_of_popCount (x y : BitVec 668)
+    (h : Nat.popCount (x.toNat ^^^ y.toNat) = 334) : rowDot x y = 0 := by
+  have hhigh : ∑ i ∈ Finset.range 668, (x.toNat ^^^ y.toNat) / 2 ^ i % 2 = 334 := by
+    rw [← popCount_xor_eq_sum (by omega) x y]
+    exact h
+  set z := x.toNat ^^^ y.toNat with hz
+  have hterm : ∀ i : ℕ, (if x.toNat.testBit i = y.toNat.testBit i then (1 : ℤ) else -1)
+      = 1 - 2 * (z / 2 ^ i % 2 : ℕ) := fun i ↦ by
+    rw [hz, ← Nat.toNat_testBit, Nat.testBit_xor]
+    cases x.toNat.testBit i <;> cases y.toNat.testBit i <;> norm_num
+  have hfin : ∑ k : Fin 668, z / 2 ^ (k : ℕ) % 2 = 334 := by
+    rw [Fin.sum_univ_eq_sum_range (fun i ↦ z / 2 ^ i % 2) 668]
+    exact hhigh
+  calc rowDot x y = ∑ k : Fin 668, (1 - 2 * (z / 2 ^ (k : ℕ) % 2 : ℕ) : ℤ) :=
+        Finset.sum_congr rfl fun k _ ↦ hterm k
+    _ = 0 := by
+        rw [Finset.sum_sub_distrib, ← Finset.mul_sum, ← Nat.cast_sum, hfin]
+        simp
+
+/-- The rows in four consecutive blocks of 167. -/
+def H668Blocks : List (List ℕ) :=
+  [H668Nats.take 167, (H668Nats.drop 167).take 167, (H668Nats.drop 334).take 167, H668Nats.drop 501]
+
+-- The orthogonality check is split over the blocks rather than run in one piece, so that the
+-- kernel holds only one block-pair's worth of intermediate terms live at a time.
+@[category test, AMS 68]
+theorem H668Block_pairwise_0 :
+    (H668Nats.take 167).Pairwise fun x y ↦ Nat.popCount (x ^^^ y) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_pairwise_1 :
+    ((H668Nats.drop 167).take 167).Pairwise fun x y ↦ Nat.popCount (x ^^^ y) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_pairwise_2 :
+    ((H668Nats.drop 334).take 167).Pairwise fun x y ↦ Nat.popCount (x ^^^ y) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_pairwise_3 :
+    (H668Nats.drop 501).Pairwise fun x y ↦ Nat.popCount (x ^^^ y) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_01 :
+    ∀ a ∈ H668Nats.take 167, ∀ b ∈ (H668Nats.drop 167).take 167,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_02 :
+    ∀ a ∈ H668Nats.take 167, ∀ b ∈ (H668Nats.drop 334).take 167,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_03 :
+    ∀ a ∈ H668Nats.take 167, ∀ b ∈ H668Nats.drop 501,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_12 :
+    ∀ a ∈ (H668Nats.drop 167).take 167, ∀ b ∈ (H668Nats.drop 334).take 167,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_13 :
+    ∀ a ∈ (H668Nats.drop 167).take 167, ∀ b ∈ H668Nats.drop 501,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+@[category test, AMS 68]
+theorem H668Block_cross_23 :
+    ∀ a ∈ (H668Nats.drop 334).take 167, ∀ b ∈ H668Nats.drop 501,
+      Nat.popCount (a ^^^ b) = 334 := by
+  decide +kernel
+
+/-- Exact finite computation that distinct rows differ in exactly 334 of their 668 bits. -/
+@[category test, AMS 68]
+theorem H668Nats_pairwise :
+    H668Nats.Pairwise fun x y ↦ Nat.popCount (x ^^^ y) = 334 := by
+  have hflat : H668Nats = H668Blocks.flatten := by
+    simp only [H668Blocks, List.flatten_cons, List.flatten_nil, List.append_nil]
+    rw [show List.drop 501 H668Nats = List.drop 167 (List.drop 334 H668Nats) by
+        rw [List.drop_drop], List.take_append_drop,
+      show List.drop 334 H668Nats = List.drop 167 (List.drop 167 H668Nats) by
+        rw [List.drop_drop], List.take_append_drop, List.take_append_drop]
+  rw [hflat, List.pairwise_flatten]
+  refine ⟨?_, ?_⟩
+  · simp only [H668Blocks, List.forall_mem_cons, List.not_mem_nil, false_implies, implies_true,
+      and_true]
+    exact ⟨H668Block_pairwise_0, H668Block_pairwise_1, H668Block_pairwise_2,
+      H668Block_pairwise_3⟩
+  · simp only [H668Blocks, List.pairwise_cons, List.mem_cons, List.not_mem_nil, or_false,
+      List.Pairwise.nil, and_true, forall_eq_or_imp, forall_eq, IsEmpty.forall_iff, implies_true]
+    exact ⟨⟨H668Block_cross_01, H668Block_cross_02, H668Block_cross_03⟩,
+      ⟨H668Block_cross_12, H668Block_cross_13⟩, H668Block_cross_23⟩
+
 /-- Exact finite computation that distinct rows in the upper triangle are orthogonal. -/
 @[category test, AMS 15]
 theorem H668Rows_orthogonal_upper :
     ∀ i j : Fin 668, i < j → rowDot (H668Rows.get i) (H668Rows.get j) = 0 := by
-  native_decide
+  intro i j hij
+  refine rowDot_eq_zero_of_popCount _ _ ?_
+  have hi : (i : ℕ) < H668Nats.length := by simp [H668Nats]
+  have hj : (j : ℕ) < H668Nats.length := by simp [H668Nats]
+  have key := List.pairwise_iff_getElem.mp H668Nats_pairwise i j hi hj hij
+  rwa [getElem_H668Nats i hi, getElem_H668Nats j hj] at key
 
 /-- Exact entries of the Gram matrix of `H668Int`. -/
 @[category test, AMS 15]

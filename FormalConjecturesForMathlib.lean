@@ -106,6 +106,7 @@ public import FormalConjecturesForMathlib.Data.Nat.Full
 public import FormalConjecturesForMathlib.Data.Nat.Init
 public import FormalConjecturesForMathlib.Data.Nat.MaxPrimeFac
 public import FormalConjecturesForMathlib.Data.Nat.PerfectPower
+public import FormalConjecturesForMathlib.Data.Nat.PopCount
 public import FormalConjecturesForMathlib.Data.Nat.Prime.Composite
 public import FormalConjecturesForMathlib.Data.Nat.Prime.Defs
 public import FormalConjecturesForMathlib.Data.Nat.Prime.Finset
